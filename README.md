@@ -1,1 +1,1 @@
-# boardly
+# Boardly Mega Project (Kanban Board)
