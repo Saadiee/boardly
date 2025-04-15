@@ -45,5 +45,31 @@ const userLoginValidator = () => {
   ];
 };
 
-export { userRegistrationValidator, userLoginValidator };
+const userEmailValidator = () => {
+  return [
+    body("email")
+      .trim()
+      .isEmail()
+      .withMessage("Invalid email")
+      .notEmpty()
+      .withMessage("Email is required"),
+  ];
+};
+
+const userPasswordValidator = () => {
+  return [
+    body("password")
+      .notEmpty()
+      .withMessage("Password is required")
+      .isLength({ min: 8 })
+      .withMessage("Password must be at least 8 characters long"),
+  ];
+};
+
+export {
+  userRegistrationValidator,
+  userLoginValidator,
+  userEmailValidator,
+  userPasswordValidator,
+};
 // now we make middleware for the validators in ./middleware/validator.middleware.js

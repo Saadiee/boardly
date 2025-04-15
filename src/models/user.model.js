@@ -16,7 +16,7 @@ const userSchema = new Schema(
       },
     },
     username: {
-      tpye: String,
+      type: String,
       required: true,
       trim: true,
       unique: true,
