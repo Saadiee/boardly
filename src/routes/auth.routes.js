@@ -1,26 +1,31 @@
 import { Router } from "express";
 import {
-  registerUser,
-  verifyEmail,
-  resendEmailVerification,
+  changeCurrentPassword,
+  getCurrentUser,
+  refreshAccessToken,
+  loginUser,
+  logoutUser,
   forgotPasswordRequest,
+  registerUser,
+  resendEmailVerification,
   resetForgottenPassword,
+  verifyEmail,
 } from "../controllers/auth.controller.js";
 import { validateUserRegistration } from "../middlewares/validator.middleware.js";
 import {
   userRegistrationValidator,
   userEmailValidator,
   userPasswordValidator,
+  userLoginValidator,
 } from "../validators/index.js";
+import { isLoggedIn } from "../middlewares/isLogged.middleware.js";
 
 const router = Router();
 
 router
   .route("/register")
   .post(userRegistrationValidator(), validateUserRegistration, registerUser);
-
 router.route("/verify/:token").get(verifyEmail);
-
 router
   .route("/resendemail")
   .post(
@@ -28,7 +33,6 @@ router
     validateUserRegistration,
     resendEmailVerification,
   );
-
 router
   .route("/forgot-password")
   .post(userEmailValidator(), validateUserRegistration, forgotPasswordRequest);
@@ -39,5 +43,10 @@ router
     validateUserRegistration,
     resetForgottenPassword,
   );
+router
+  .route("/login")
+  .post(userLoginValidator(), validateUserRegistration, loginUser);
+router.route("/logout").get(logoutUser);
+router.route("/profile").get(isLoggedIn, getCurrentUser);
 
 export default router;
