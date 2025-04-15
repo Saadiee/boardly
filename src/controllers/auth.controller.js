@@ -1,3 +1,5 @@
+import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
 import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { asyncHandler } from "../utils/async-handler.js";
@@ -9,6 +11,7 @@ import {
 } from "../utils/mail.js";
 
 const base_url = "http://localhost:8000/api/v1";
+dotenv.config();
 
 // * DONE
 const registerUser = asyncHandler(async (req, res) => {
@@ -205,11 +208,15 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
   //validation
 });
 
-// TODO
+// ? Working
 const getCurrentUser = asyncHandler(async (req, res) => {
-  const { email, username, password, role } = req.body;
-
-  //validation
+  const user = await User.findById(req.user.id);
+  if (!user) {
+    return res
+      .json(400)
+      .json(new ApiError(400, "User not found to be logged in"));
+  }
+  res.status(200).json(new ApiResponse(200, user, "User found"));
 });
 
 // TODO
@@ -219,17 +226,57 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   //validation
 });
 
-// TODO
+// ? Working
 const loginUser = asyncHandler(async (req, res) => {
-  const { email, username, password, role } = req.body;
+  const { email, password } = req.body;
+  const user = await User.findOne({ email });
+  if (!user) {
+    return res
+      .status(401)
+      .json(new ApiError(401, "Email or password is incorrect"));
+  }
+  const isPassMatch = user.isPasswordCorrect(password);
+  if (!isPassMatch) {
+    return res
+      .status(401)
+      .json(new ApiError(401, "Email or password is incorrect"));
+  }
 
-  //validation
+  const jwtOptions = {
+    expiresIn: process.env.JWT_EXPIRY,
+  };
+  const jwtToken = jwt.sign(
+    { id: user._id },
+    process.env.JWT_SECRET,
+    jwtOptions,
+  );
+
+  const cookieOpt = {
+    httpOnly: true,
+    secure: true,
+    maxAge: 1 * 24 * 60 * 60 * 1000, // 1 day
+  };
+  res.cookie("jwtToken", jwtToken, cookieOpt);
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { id: user._id, email: user.email, role: user.role },
+        "User login sucessfull",
+      ),
+    );
 });
 
 // TODO
 const logoutUser = asyncHandler(async (req, res) => {
-  const { email, username, password, role } = req.body;
-
+  res.cookie(jwtToken, "", {
+    httpOnly: true,
+    secure: true,
+    expires: new Date(0),
+  });
+  res.send(200).json(new ApiResponse(200, {}, "User logout sucessfully"));
   //validation
 });
 
