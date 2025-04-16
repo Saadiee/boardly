@@ -17,6 +17,7 @@ import {
   userEmailValidator,
   userPasswordValidator,
   userLoginValidator,
+  changeCurrentPasswordValidator,
 } from "../validators/index.js";
 import { isLoggedIn } from "../middlewares/isLogged.middleware.js";
 
@@ -48,5 +49,9 @@ router
   .post(userLoginValidator(), validateUserRegistration, loginUser);
 router.route("/logout").get(logoutUser);
 router.route("/profile").get(isLoggedIn, getCurrentUser);
+router
+  .route("/change-password")
+  .post(isLoggedIn, changeCurrentPasswordValidator(), changeCurrentPassword);
+router.route("/refresh-accesstoken").get(refreshAccessToken);
 
 export default router;
