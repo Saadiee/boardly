@@ -201,16 +201,39 @@ const forgotPasswordRequest = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "Reset password email sent"));
 });
 
-// TODO
+// * DONE
 const changeCurrentPassword = asyncHandler(async (req, res) => {
-  const { email, username, password, role } = req.body;
+  const user = await User.findById(req.user.id);
+  if (!user) {
+    return res
+      .status(400)
+      .json(new ApiError(400, "User not found to be logged in"));
+  }
+  const { currentPassword, newPassword, confirmNewPassword } = req.body;
+  const isPassMatch = await user.isPasswordCorrect(currentPassword);
+
+  if (!isPassMatch) {
+    return res
+      .status(401)
+      .json(new ApiError(401, "Current password is incorrect"));
+  }
+  if (newPassword !== confirmNewPassword) {
+    return res.status(401).json(new ApiError(401, "Password doesn't match"));
+  }
+  user.password = newPassword;
+  await user.save();
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password changed successfully"));
 
   //validation
 });
 
-// ? Working
+// * DONE
 const getCurrentUser = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.id);
+  const user = await User.findById(req.user.id).select(
+    "-password -emailVerificationToken -forgotPasswordToken -refreshToken",
+  );
   if (!user) {
     return res
       .json(400)
@@ -219,14 +242,31 @@ const getCurrentUser = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, user, "User found"));
 });
 
-// TODO
+// ? Working
 const refreshAccessToken = asyncHandler(async (req, res) => {
-  const { email, username, password, role } = req.body;
-
-  //validation
+  const refreshToken = req.cookies?.refreshToken;
+  if (!refreshToken) {
+    return res.status(401).json(new ApiError(401, "Unauthorized error"));
+  }
+  try {
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    const user = await User.findById(decoded._id);
+    if (!user) {
+      return res.status(401).json(new ApiError(401, "User not found"));
+    }
+    const accessToken = user.generateAccessToken();
+    return res.status(200).json({
+      accessToken,
+      message: "Access token refreshed successfully",
+    });
+  } catch (error) {
+    return res
+      .status(401)
+      .json(new ApiError(401, "Invalid or expired refresh token"));
+  }
 });
 
-// ? Working
+// * DONE
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email });
@@ -235,49 +275,58 @@ const loginUser = asyncHandler(async (req, res) => {
       .status(401)
       .json(new ApiError(401, "Email or password is incorrect"));
   }
-  const isPassMatch = user.isPasswordCorrect(password);
+  const isPassMatch = await user.isPasswordCorrect(password);
   if (!isPassMatch) {
     return res
       .status(401)
       .json(new ApiError(401, "Email or password is incorrect"));
   }
 
-  const jwtOptions = {
-    expiresIn: process.env.JWT_EXPIRY,
-  };
-  const jwtToken = jwt.sign(
-    { id: user._id },
-    process.env.JWT_SECRET,
-    jwtOptions,
-  );
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
 
   const cookieOpt = {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
     maxAge: 1 * 24 * 60 * 60 * 1000, // 1 day
+    sameSite: "strict",
   };
-  res.cookie("jwtToken", jwtToken, cookieOpt);
+  res.cookie("refreshToken", refreshToken, cookieOpt);
+  user.refreshToken = refreshToken;
+  await user.save();
 
   return res
     .status(200)
     .json(
       new ApiResponse(
         200,
-        { id: user._id, email: user.email, role: user.role },
+        { id: user._id, email: user.email, role: user.role, accessToken },
         "User login sucessfull",
       ),
     );
 });
 
-// TODO
+// * DONE
 const logoutUser = asyncHandler(async (req, res) => {
-  res.cookie(jwtToken, "", {
+  const user = await User.findById(req.user.id).select(
+    "-password -emailVerificationToken -forgotPasswordToken -refreshToken",
+  );
+  if (!user) {
+    return res
+      .status(400)
+      .json(new ApiError(400, "User not found to be logged in"));
+  }
+  user.refreshToken = "";
+  await user.save();
+  // clear cookie
+  res.cookie("refreshToken", "", {
     httpOnly: true,
     secure: true,
+    sameSite: "strict",
     expires: new Date(0),
   });
-  res.send(200).json(new ApiResponse(200, {}, "User logout sucessfully"));
-  //validation
+
+  res.status(200).json(new ApiResponse(200, {}, "User logout successfully"));
 });
 
 export {
