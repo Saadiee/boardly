@@ -47,7 +47,7 @@ router
 router
   .route("/login")
   .post(userLoginValidator(), validateUserRegistration, loginUser);
-router.route("/logout").get(logoutUser);
+router.route("/logout").get(isLoggedIn, logoutUser);
 router.route("/profile").get(isLoggedIn, getCurrentUser);
 router
   .route("/change-password")
