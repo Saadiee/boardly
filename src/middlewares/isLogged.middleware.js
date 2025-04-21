@@ -2,7 +2,6 @@ import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import { ApiError } from "../utils/api-error.js";
 import { asyncHandler } from "../utils/async-handler.js";
-import dotenv from "dotenv";
 
 dotenv.config();
 
@@ -14,7 +13,7 @@ export const isLoggedIn = asyncHandler(async (req, res, next) => {
       .json(
         new ApiError(
           401,
-          "Authentication failed. jwtToken not found in cookie",
+          "Authentication failed. RefreshToken not found in cookie",
         ),
       );
   }
@@ -23,6 +22,7 @@ export const isLoggedIn = asyncHandler(async (req, res, next) => {
       getRefreshToken,
       process.env.REFRESH_TOKEN_SECRET,
     );
+    console.log("Decoded Token(isLogged.middleware):", decodedToken);
     req.user = decodedToken;
     next();
   } catch (error) {
