@@ -231,7 +231,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 
 // * DONE
 const getCurrentUser = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.id).select(
+  const user = await User.findById(req.user._id).select(
     "-password -emailVerificationToken -forgotPasswordToken -refreshToken",
   );
   if (!user) {
@@ -242,7 +242,7 @@ const getCurrentUser = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, user, "User found"));
 });
 
-// ? Working
+// * DONE
 const refreshAccessToken = asyncHandler(async (req, res) => {
   const refreshToken = req.cookies?.refreshToken;
   if (!refreshToken) {
@@ -308,9 +308,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
 // * DONE
 const logoutUser = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.id).select(
-    "-password -emailVerificationToken -forgotPasswordToken -refreshToken",
-  );
+  const user = await User.findById(req.user._id);
   if (!user) {
     return res
       .status(400)
