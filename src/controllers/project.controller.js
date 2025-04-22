@@ -82,11 +82,25 @@ const createProject = async (req, res) => {
 // * DONE
 const updateProject = async (req, res) => {
   const { name, description, projectId } = req.body;
+
   if (!projectId) {
     return res.status(400).json(new ApiError(400, "Project ID is required"));
   }
   try {
     const project = await Project.findById(projectId);
+    // Check if user has permission
+    if (project.createdBy.toString() !== req.user._id) {
+      const member = await ProjectMember.findOne({
+        project: projectId,
+        user: req.user._id,
+        role: { $in: [UserRolesEnum.ADMIN, UserRolesEnum.PROJECT_ADMIN] },
+      });
+      if (!member) {
+        return res
+          .status(403)
+          .json(new ApiError(403, "Not authorized to update project"));
+      }
+    }
     if (!project) {
       return res
         .status(404)
@@ -139,7 +153,7 @@ const deleteProject = async (req, res) => {
     await ProjectNote.deleteMany({ project: projectId });
 
     // Step 4: Delete the project
-    await project.remove();
+    await Project.deleteOne({ _id: projectId });
     return res
       .status(200)
       .json(new ApiResponse(200, null, "Project deleted successfully"));
@@ -151,7 +165,7 @@ const deleteProject = async (req, res) => {
   }
 };
 
-// ? Working
+// * DONE
 const getProjectMembers = async (req, res) => {
   const { projectId } = req.params;
 
@@ -179,7 +193,7 @@ const getProjectMembers = async (req, res) => {
   }
 };
 
-// ? Working
+// * DONE
 const addMemberToProject = async (req, res) => {
   const { projectId } = req.params;
   const { userId, role } = req.body;
@@ -278,15 +292,106 @@ const addMemberToProject = async (req, res) => {
 };
 
 const deleteMember = async (req, res) => {
-  // check if user exits
-  // filter krna pray ga members list mai sy jin k pass project id wo ho jis ko delete krna ho
-  // phir uc member ki id chahiye jisko remove krna hai
-  // Ye dekhna hai k khe wo member admin to nahi
-  // uc member ki ProjectMemeber mai sy Doc ko delete krna hai
+  const { projectId, memberId } = req.body;
+
+  if (!projectId || !memberId) {
+    return res
+      .status(400)
+      .json(new ApiError(400, "Project ID and Member ID required"));
+  }
+
+  try {
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json(new ApiError(404, "Project not found"));
+    }
+
+    // Check permissions
+    if (project.createdBy.toString() !== req.user._id) {
+      const callerMember = await ProjectMember.findOne({
+        project: projectId,
+        user: req.user._id,
+        role: { $in: [UserRolesEnum.ADMIN, UserRolesEnum.PROJECT_ADMIN] },
+      });
+      if (!callerMember) {
+        return res
+          .status(403)
+          .json(new ApiError(403, "Not authorized to remove members"));
+      }
+    }
+
+    // Don't allow removing the project creator
+    const memberToDelete = await ProjectMember.findById(memberId);
+    if (!memberToDelete) {
+      return res.status(404).json(new ApiError(404, "Member not found"));
+    }
+
+    if (memberToDelete.user.toString() === project.createdBy.toString()) {
+      return res
+        .status(400)
+        .json(new ApiError(400, "Cannot remove project creator"));
+    }
+
+    await ProjectMember.deleteOne({ _id: memberId });
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, null, "Member removed successfully"));
+  } catch (error) {
+    console.error("Delete member error:", error);
+    return res.status(500).json(new ApiError(500, "Internal server error"));
+  }
 };
 
 const updateMemberRole = async (req, res) => {
-  // update member role
+  const { projectId, memberId, role } = req.body;
+  // Validate required fields
+  if (!projectId || !memberId || !role) {
+    return res
+      .status(400)
+      .json(new ApiError(400, "Project ID, Member ID, and role are required"));
+  }
+  // Validate ObjectIds
+  if (
+    !mongoose.Types.ObjectId.isValid(projectId) ||
+    !mongoose.Types.ObjectId.isValid(memberId)
+  ) {
+    return res
+      .status(400)
+      .json(new ApiError(400, "Invalid Project ID or Member ID"));
+  }
+
+  try {
+    // Check if the ProjectMember exists within the specified project
+    const existingMember = await ProjectMember.findOne({
+      _id: memberId,
+      project: projectId,
+    });
+
+    if (!existingMember) {
+      return res
+        .status(404)
+        .json(new ApiError(404, "Project member not found"));
+    }
+    // Update the role with validation
+    const updatedMember = await ProjectMember.findByIdAndUpdate(
+      memberId,
+      { role },
+      { new: true, runValidators: true }, // Enforce schema validators
+    );
+    // Send success response with updated member data
+    return res
+      .status(200)
+      .json(new ApiResponse(200, updatedMember, "Role updated successfully"));
+  } catch (error) {
+    console.error("UpdateMemberRole error:", error);
+    // Handle validation errors (e.g., invalid role)
+    if (error.name === "ValidationError") {
+      return res.status(400).json(new ApiError(400, error.message));
+    }
+    // Generic server error
+    return res.status(500).json(new ApiError(500, "Internal Server Error"));
+  }
 };
 
 export {
