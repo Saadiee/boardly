@@ -46,7 +46,7 @@ const registerUser = asyncHandler(async (req, res) => {
   }
   // create a verification token
   const { unhashedToken, tokenExpiry } = user.generateTemporaryToken();
-  // save token in databse
+  // save token in database
   user.emailVerificationToken = unhashedToken;
   user.emailVerificationTokenExpiry = tokenExpiry;
   // save user in DB
@@ -67,7 +67,7 @@ const registerUser = asyncHandler(async (req, res) => {
       new ApiResponse(
         200,
         "",
-        "Registration successfull, Please verify your email now",
+        "Registration successfully, Please verify your email now",
       ),
     );
 });
@@ -109,7 +109,7 @@ const resendEmailVerification = asyncHandler(async (req, res) => {
   if (!user) {
     return res
       .status(400)
-      .json(new ApiError(400, "Bad Request, User doesnot exits"));
+      .json(new ApiError(400, "Bad Request, User does not exits"));
   }
   const { unhashedToken, tokenExpiry } = user.generateTemporaryToken();
   user.emailVerificationToken = unhashedToken;
@@ -131,7 +131,7 @@ const resendEmailVerification = asyncHandler(async (req, res) => {
       new ApiResponse(
         200,
         "",
-        "Registeration email resend successfully, Please verify your email now",
+        "Registration email resend successfully, Please verify your email now",
       ),
     );
 
@@ -150,7 +150,7 @@ const resetForgottenPassword = asyncHandler(async (req, res) => {
   if (!user) {
     return res
       .status(400)
-      .json(new ApiError(400, "Bad Request, User doesnot exits"));
+      .json(new ApiError(400, "Bad Request, User does not exits"));
   }
   if (password !== confirmPassword) {
     return res.status(401).json(new ApiError(401, "Password doesn't match"));
@@ -288,7 +288,7 @@ const loginUser = asyncHandler(async (req, res) => {
   const cookieOpt = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    maxAge: 1 * 24 * 60 * 60 * 1000, // 1 day
+    maxAge: 24 * 60 * 60 * 1000, // 1 day
     sameSite: "strict",
   };
   res.cookie("refreshToken", refreshToken, cookieOpt);
@@ -301,7 +301,7 @@ const loginUser = asyncHandler(async (req, res) => {
       new ApiResponse(
         200,
         { id: user._id, email: user.email, role: user.role, accessToken },
-        "User login sucessfull",
+        "User login successful",
       ),
     );
 });
